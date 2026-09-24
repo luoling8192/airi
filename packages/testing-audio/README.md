@@ -101,6 +101,27 @@ TESTING_AUDIO_TTS_API_KEY=...
 
 These tests send audio and text to external Providers. Each run can incur Provider charges.
 
+## Bidirectional ASR and TTS acceptance
+
+`cases/streaming-duplex-pipeline` uses the same recorded microphone input to check official streaming ASR, visible interim text, official Chat, official streaming TTS, and completed audio playback. It is opt-in because it uses AIRI credits.
+
+Set these values in `packages/testing-audio/.env.test.local`:
+
+```dotenv
+TESTING_AUDIO_RUN_STREAMING_PIPELINE=1
+TESTING_AUDIO_AIRI_ACCESS_TOKEN=...
+TESTING_AUDIO_OFFICIAL_TTS_MODEL=volcengine/seed-tts-2.0
+TESTING_AUDIO_OFFICIAL_TTS_VOICE=...
+```
+
+Export `VITE_SERVER_URL` in the shell before building and running the tests. It must point to the same test AIRI server that issued the access token and supports both WebSocket routes. The package-local test environment does not configure the built applications.
+
+```bash
+pnpm -F @proj-airi/testing-audio test:run
+```
+
+The case runs for Web and Electron. It does not pass merely because requests were sent: it requires a final ASR transcript, more than one visible text update, non-empty LLM output, completed TTS session with received audio, and a completed playback span. If the server credentials or Provider settings are absent, the case skips and cannot count as live acceptance.
+
 ## Run the tests
 
 Build both targets and run all runtime projects:

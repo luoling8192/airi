@@ -28,6 +28,7 @@ export interface AudioInputSnapshot {
   piniaActionEvents: PiniaActionEvent[]
   spans: SerializedIOSpan[]
   streamingTranscriptionUpdates: string[]
+  streamingTts: { sessionsStarted: number, sessionsFinished: number, audioBytes: number }
   transcriptionResults: string[]
 }
 

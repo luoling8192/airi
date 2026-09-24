@@ -19,7 +19,16 @@ import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-actio
  * - `window.__airiAudioInputE2E`
  */
 export function stubForBrowser(piniaActionChannelName: string) {
-  const state: BrowserAudioInputState = { piniaActionEvents: [], spans: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], vadReady: false }
+  const state: BrowserAudioInputState = {
+    piniaActionEvents: [],
+    spans: [],
+    streamingTranscriptionReady: false,
+    streamingTranscriptionUpdates: [],
+    streamingTts: { sessionsStarted: 0, sessionsFinished: 0, audioBytes: 0 },
+    transcriptionAudio: [],
+    transcriptionResults: [],
+    vadReady: false,
+  }
   window.__airiAudioInputE2E = state
 
   const piniaActionChannel = new BroadcastChannel(piniaActionChannelName)
@@ -84,7 +93,7 @@ export function stubForBrowser(piniaActionChannelName: string) {
 
   const OriginalWebSocket = window.WebSocket
   const audioChunksBySocket = new WeakMap<WebSocket, Uint8Array[]>()
-  const capturesAliyunNlsBySocket = new WeakMap<WebSocket, boolean>()
+  const transcriptionKindBySocket = new WeakMap<WebSocket, 'aliyun' | 'official'>()
   const capturedSockets = new WeakSet<WebSocket>()
 
   function capturePcmAudio(socket: WebSocket) {
@@ -106,29 +115,61 @@ export function stubForBrowser(piniaActionChannelName: string) {
     state.transcriptionAudio.push({ base64: audio.toBase64(), format: 'pcm' })
   }
 
-  class CaptureAliyunNlsWebSocket extends OriginalWebSocket {
+  class CaptureAudioWebSocket extends OriginalWebSocket {
     constructor(url: string | URL, protocols?: string | string[]) {
       super(url, protocols)
       const target = new URL(url.toString(), window.location.href)
       const capturesAliyunNls = target.hostname.startsWith('nls-gateway-') && target.hostname.endsWith('.aliyuncs.com')
-      capturesAliyunNlsBySocket.set(this, capturesAliyunNls)
+      const capturesOfficialAsr = target.pathname.endsWith('/api/v1/audio/transcriptions/ws')
+      const capturesStreamingTts = target.pathname.endsWith('/api/v1/audio/speech/ws')
+      if (capturesAliyunNls || capturesOfficialAsr)
+        transcriptionKindBySocket.set(this, capturesAliyunNls ? 'aliyun' : 'official')
 
-      if (capturesAliyunNls) {
+      if (capturesAliyunNls || capturesOfficialAsr) {
         audioChunksBySocket.set(this, [])
-        this.addEventListener('open', () => {
-          state.streamingTranscriptionReady = true
-        })
+        if (capturesAliyunNls) {
+          this.addEventListener('open', () => {
+            state.streamingTranscriptionReady = true
+          })
+        }
         this.addEventListener('message', (event) => {
           if (typeof event.data !== 'string')
             return
 
           try {
-            const payload = JSON.parse(event.data) as { header?: { name?: string }, payload?: { result?: unknown } }
-            if (payload.header?.name === 'SentenceEnd' && typeof payload.payload?.result === 'string')
+            const payload = JSON.parse(event.data) as { event?: string, text?: unknown, isFinal?: unknown, header?: { name?: string }, payload?: { result?: unknown } }
+            if (capturesOfficialAsr && payload.event === 'session.started')
+              state.streamingTranscriptionReady = true
+            if (capturesOfficialAsr && payload.event === 'transcript.text.snapshot' && payload.isFinal === true && typeof payload.text === 'string')
+              state.transcriptionResults.push(payload.text)
+            if (capturesAliyunNls && payload.header?.name === 'SentenceEnd' && typeof payload.payload?.result === 'string')
               state.transcriptionResults.push(payload.payload.result)
           }
           catch {
-            // NLS can send non-transcription frames. The Provider handles those frames.
+            // Providers handle malformed or unrelated frames; the probe is passive.
+          }
+        })
+      }
+
+      if (capturesStreamingTts) {
+        this.addEventListener('message', (event) => {
+          if (typeof event.data !== 'string') {
+            if (event.data instanceof ArrayBuffer)
+              state.streamingTts.audioBytes += event.data.byteLength
+            else if (event.data instanceof Blob)
+              state.streamingTts.audioBytes += event.data.size
+            return
+          }
+
+          try {
+            const payload = JSON.parse(event.data) as { event?: string }
+            if (payload.event === 'session.started')
+              state.streamingTts.sessionsStarted++
+            if (payload.event === 'session.finished')
+              state.streamingTts.sessionsFinished++
+          }
+          catch {
+            // The probe only counts protocol events and never records credentials or speech text.
           }
         })
       }
@@ -136,7 +177,7 @@ export function stubForBrowser(piniaActionChannelName: string) {
 
     send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
       const audioChunks = audioChunksBySocket.get(this)
-      if (capturesAliyunNlsBySocket.get(this) && audioChunks && typeof data !== 'string') {
+      if (transcriptionKindBySocket.has(this) && audioChunks && typeof data !== 'string') {
         if (data instanceof Blob) {
           void data.arrayBuffer().then((buffer) => {
             audioChunks.push(new Uint8Array(buffer))
@@ -169,7 +210,7 @@ export function stubForBrowser(piniaActionChannelName: string) {
 
     close(code?: number, reason?: string): void {
       const audioChunks = audioChunksBySocket.get(this)
-      if (capturesAliyunNlsBySocket.get(this) && audioChunks && !capturedSockets.has(this) && audioChunks.length) {
+      if (transcriptionKindBySocket.has(this) && audioChunks && !capturedSockets.has(this) && audioChunks.length) {
         capturePcmAudio(this)
       }
 
@@ -177,7 +218,7 @@ export function stubForBrowser(piniaActionChannelName: string) {
     }
   }
 
-  window.WebSocket = CaptureAliyunNlsWebSocket
+  window.WebSocket = CaptureAudioWebSocket
 
   const channel = new BroadcastChannel('io-tracer-channel')
 

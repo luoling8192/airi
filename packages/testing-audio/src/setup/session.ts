@@ -132,6 +132,7 @@ export function createSession(options: {
         piniaActionEvents: runtimeState?.piniaActionEvents ?? [],
         spans: runtimeState?.spans ?? [],
         streamingTranscriptionUpdates: interactionState?.streamingTranscriptionUpdates ?? [],
+        streamingTts: runtimeState?.streamingTts ?? { sessionsStarted: 0, sessionsFinished: 0, audioBytes: 0 },
         transcriptionResults: runtimeState?.transcriptionResults ?? [],
       }
     },

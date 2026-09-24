@@ -7,6 +7,7 @@ declare global {
     spans: SerializedIOSpan[]
     streamingTranscriptionReady: boolean
     streamingTranscriptionUpdates: string[]
+    streamingTts: { sessionsStarted: number, sessionsFinished: number, audioBytes: number }
     transcriptionAudio: Array<{ base64: string, format: 'pcm' | 'wav' }>
     transcriptionResults: string[]
     vadReady: boolean
