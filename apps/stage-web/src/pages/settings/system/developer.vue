@@ -99,6 +99,12 @@ const menu = computed(() => [
     to: '/devtools/vibrant',
   },
   {
+    title: 'V2 Characters',
+    description: 'Preview the v2 character card grid with mock data',
+    icon: 'i-solar:sledgehammer-bold-duotone',
+    to: '/devtools/v2-characters',
+  },
+  {
     title: 'Aliyun Real-time Transcriber',
     description: 'Stream microphone audio to Aliyun NLS and inspect live transcripts',
     icon: 'i-solar:sledgehammer-bold-duotone',
