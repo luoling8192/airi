@@ -46,7 +46,7 @@ function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, env)
+  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {

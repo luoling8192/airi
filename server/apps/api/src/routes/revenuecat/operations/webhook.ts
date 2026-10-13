@@ -1,4 +1,6 @@
+import type { RevenueMetrics } from '../../../otel'
 import type { RevenuecatSubscriptionSync } from '../../../services/adapters/revenuecat-subscriptions'
+import type { ApiError } from '../../../utils/error'
 
 import { Buffer } from 'node:buffer'
 import { createHmac, timingSafeEqual } from 'node:crypto'
@@ -85,47 +87,62 @@ function verifySignature(
  * The event type does not select a capacitor rule, so a repeated or late delivery is safe.
  */
 export function createWebhookOperation(
-  subscriptionSync: RevenuecatSubscriptionSync,
+  subscriptionSync: Pick<RevenuecatSubscriptionSync, 'reconcile'>,
   secrets: RevenuecatWebhookSecrets,
+  metrics: Pick<RevenueMetrics, 'revenuecatEvents'> | null,
 ) {
+  const rejected = (reason: 'not_configured' | 'unauthorized' | 'invalid_payload', error: ApiError) => {
+    metrics?.revenuecatEvents.add(1, { event_type: 'unknown', outcome: 'rejected', reason })
+    return error
+  }
+
   return async (
     rawBody: string,
     headers: { authorization: string | null, signature: string | null },
   ): Promise<{ received: true }> => {
     if (!secrets.authorization && !secrets.signingSecret)
-      throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
+      throw rejected('not_configured', createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED'))
 
     if (!verifyAuthorizationHeader(headers.authorization, secrets.authorization))
-      throw createUnauthorizedError('Invalid webhook authorization')
+      throw rejected('unauthorized', createUnauthorizedError('Invalid webhook authorization'))
 
     if (!verifySignature(rawBody, headers.signature, secrets.signingSecret))
-      throw createUnauthorizedError('Invalid webhook signature')
+      throw rejected('unauthorized', createUnauthorizedError('Invalid webhook signature'))
 
     let body: unknown
     try {
       body = JSON.parse(rawBody)
     }
     catch {
-      throw createBadRequestError('Invalid webhook body', 'INVALID_REQUEST')
+      throw rejected('invalid_payload', createBadRequestError('Invalid webhook body', 'INVALID_REQUEST'))
     }
 
     const parsed = safeParse(webhookSchema, body)
     if (!parsed.success)
-      throw createBadRequestError('Invalid webhook event', 'INVALID_REQUEST', parsed.issues)
+      throw rejected('invalid_payload', createBadRequestError('Invalid webhook event', 'INVALID_REQUEST', parsed.issues))
 
     const event = parsed.output.event
     logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
 
-    if (event.type === 'TEST')
+    if (event.type === 'TEST') {
+      metrics?.revenuecatEvents.add(1, { event_type: event.type, outcome: 'processed' })
       return { received: true }
+    }
 
     const userIds = new Set([
       ...(event.app_user_id ? [event.app_user_id] : []),
       ...(event.transferred_from ?? []),
       ...(event.transferred_to ?? []),
     ])
-    for (const userId of userIds)
-      await subscriptionSync.reconcile(userId)
+    try {
+      for (const userId of userIds)
+        await subscriptionSync.reconcile(userId)
+    }
+    catch (error) {
+      metrics?.revenuecatEvents.add(1, { event_type: event.type, outcome: 'failed' })
+      throw error
+    }
+    metrics?.revenuecatEvents.add(1, { event_type: event.type, outcome: 'processed' })
     return { received: true }
   }
 }

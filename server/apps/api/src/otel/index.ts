@@ -50,6 +50,7 @@ import {
   METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
   METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT,
   METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT,
+  METRIC_REVENUECAT_EVENTS,
   METRIC_STRIPE_CHECKOUT_COMPLETED,
   METRIC_STRIPE_CHECKOUT_CREATED,
   METRIC_STRIPE_EVENTS,
@@ -112,6 +113,13 @@ export interface RevenueMetrics {
   stripeCheckoutCompleted: Counter
   stripeEvents: Counter
   stripeRevenue: Counter
+  /**
+   * RevenueCat webhook deliveries, one count for each request.
+   * `outcome` is `processed`, `rejected` (the request did not pass verification,
+   * with `reason`), or `failed` (reconciliation threw, so RevenueCat sends the event again).
+   * `event_type` is `unknown` for a rejected request.
+   */
+  revenuecatEvents: Counter
   fluxInsufficientBalance: Counter
   fluxCredited: Counter
   /**
@@ -357,6 +365,9 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'Stripe revenue in smallest currency unit (e.g. cents)',
       unit: 'minor_unit',
     }),
+    revenuecatEvents: meter.createCounter(METRIC_REVENUECAT_EVENTS, {
+      description: 'Number of RevenueCat webhook deliveries by outcome',
+    }),
     fluxInsufficientBalance: meter.createCounter(METRIC_FLUX_INSUFFICIENT_BALANCE, {
       description: 'Number of insufficient flux balance errors',
     }),
@@ -495,6 +506,7 @@ export function initOtel(env: Env): OtelInstance | null {
     revenue.stripeCheckoutCompleted,
     revenue.stripeEvents,
     revenue.stripeRevenue,
+    revenue.revenuecatEvents,
     revenue.fluxInsufficientBalance,
     revenue.fluxCredited,
     revenue.fluxUnbilled,

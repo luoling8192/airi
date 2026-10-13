@@ -62,6 +62,7 @@ export const METRIC_WS_MESSAGES_RECEIVED = 'ws.messages.received'
 export const METRIC_STRIPE_CHECKOUT_CREATED = 'stripe.checkout.created'
 export const METRIC_STRIPE_CHECKOUT_COMPLETED = 'stripe.checkout.completed'
 export const METRIC_STRIPE_EVENTS = 'stripe.events'
+export const METRIC_REVENUECAT_EVENTS = 'revenuecat.events'
 export const METRIC_FLUX_INSUFFICIENT_BALANCE = 'flux.insufficient_balance'
 
 // GenAI — https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/

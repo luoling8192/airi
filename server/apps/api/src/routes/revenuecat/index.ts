@@ -1,4 +1,5 @@
 import type { Env } from '../../libs/env'
+import type { RevenueMetrics } from '../../otel'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -16,11 +17,12 @@ import { createWebhookOperation } from './operations/webhook'
 export function createRevenuecatRoutes(
   subscriptionSync: RevenuecatSubscriptionSync,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
+  metrics: RevenueMetrics | null,
 ) {
   const webhook = createWebhookOperation(subscriptionSync, {
     authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
     signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
-  })
+  }, metrics)
 
   return new Hono<HonoEnv>()
     .post('/webhook', async (c) => {
