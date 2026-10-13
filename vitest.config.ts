@@ -9,6 +9,7 @@ export default defineConfig({
       'server/apps/api',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi/vitest.node.config.ts',
+      'packages/alint-plugin-airi',
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',
