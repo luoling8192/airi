@@ -556,6 +556,12 @@ pages:
     import_invalid_file: Card package file is invalid
     upload: Upload
     upload_desc: Click or drag an AIRI card package to import
+    stage:
+      identity: Identity
+      avatar: Avatar
+      brain: Brain
+      greetings: Greetings
+      more: More actions
   memory:
     description: Where memories got stored, and organized
     title: Memory

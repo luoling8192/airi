@@ -526,6 +526,12 @@ pages:
     import_invalid_file: 卡片包文件无效
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
+    stage:
+      identity: 身份
+      avatar: 形象
+      brain: 大脑
+      greetings: 开场白
+      more: 更多操作
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体

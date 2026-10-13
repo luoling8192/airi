@@ -29,6 +29,13 @@ import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 interface Props {
   cardId?: string
   initialSection?: string
+  /**
+   * The host page supplies the title, the section navigation, and the save actions.
+   * The editor then shows only its fields. The host calls the exposed `save`.
+   *
+   * @default false
+   */
+  embedded?: boolean
 }
 
 interface SavedCardPayload {
@@ -713,11 +720,14 @@ async function handleSave(activate: boolean) {
 function handleBack() {
   emit('back')
 }
+
+defineExpose({ save: handleSave, sections, isSaving })
 </script>
 
 <template>
-  <div :class="['h-full min-h-0 w-full', 'flex flex-col', 'bg-white dark:bg-neutral-950']">
+  <div :class="['h-full min-h-0 w-full', 'flex flex-col', embedded ? '' : 'bg-white dark:bg-neutral-950']">
     <header
+      v-if="!embedded"
       :class="[
         'shrink-0',
         'border-b border-neutral-200/70 dark:border-neutral-800',
@@ -809,10 +819,11 @@ function handleBack() {
       :class="[
         'min-h-0 flex-1',
         'flex flex-col',
-        'lg:grid lg:grid-cols-[14rem_minmax(0,1fr)]',
+        embedded ? '' : 'lg:grid lg:grid-cols-[14rem_minmax(0,1fr)]',
       ]"
     >
       <aside
+        v-if="!embedded"
         :class="[
           'hidden lg:block',
           'border-r border-neutral-200/70 dark:border-neutral-800',
@@ -837,7 +848,7 @@ function handleBack() {
       </aside>
 
       <section :class="['min-h-0 flex flex-1 flex-col']">
-        <div :class="['border-b border-neutral-200/70 px-4 py-3 dark:border-neutral-800 lg:hidden']">
+        <div v-if="!embedded" :class="['border-b border-neutral-200/70 px-4 py-3 dark:border-neutral-800 lg:hidden']">
           <div
             :class="[
               'relative',
@@ -865,7 +876,7 @@ function handleBack() {
         </div>
 
         <div :class="['min-h-0 flex-1 overflow-y-auto']">
-          <div :class="['mx-auto w-full max-w-6xl', 'px-4 py-5 lg:px-8 lg:py-8']">
+          <div :class="['mx-auto w-full max-w-6xl', embedded ? 'px-5 pb-28 pt-11 md:px-14' : 'px-4 py-5 lg:px-8 lg:py-8']">
             <!-- Error banner -->
             <div
               v-if="showError"
@@ -1064,6 +1075,7 @@ function handleBack() {
         </div>
 
         <footer
+          v-if="!embedded"
           :class="[
             'shrink-0',
             'border-t border-neutral-200/70 dark:border-neutral-800',
