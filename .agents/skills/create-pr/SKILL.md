@@ -37,19 +37,25 @@ Build a small context brief before you write the PR body. Keep the analysis read
 
 Use the structure in [the PR body template](references/pr-body.md) as a decision guide. Match the detail to the scope, risk, and review cost.
 
-- Every PR needs a concise `## Summary` and `## Verification` section.
-- Add `## Change map` when the diff changes several modules, responsibilities, or ownership boundaries.
-- Add `## Architecture and behavior` when a diagram explains the change faster or more accurately than prose.
-- Add `## Boundaries and risks` when the change has meaningful failure modes, invariants, migrations, or external effects.
+The reader must see at a glance what changed and where the boundaries are. Prefer a diagram to prose and to a wide table.
+
+- Every PR needs a concise `## Summary` and `## Verification` section. Keep the summary to a few lines.
+- Add `## Change map` when the diff changes several modules, responsibilities, or ownership boundaries. Use one diagram.
+- Add `## Architecture and behavior` when a diagram explains the change faster or more accurately than prose. Keep the sequence or state diagrams that show ordering. The change map adds to them and does not replace them.
+- Add `## Boundaries and risks` when the change has meaningful failure modes, invariants, migrations, or external effects. Use a guard flowchart.
+- State each fact one time. Remove text that does not change what the reviewer checks or decides.
 - Keep a small and local PR body small. Do not add a table or diagram only to satisfy a template.
 
-When a change map is useful, prefer this table:
+Draw the change map as a flowchart of modules and stores. Label each edge with the call, event, or data that moves. Mark the new and removed parts. Use module or domain names, not a raw file list. Prose is sufficient for a single local module.
 
-| Module | Before | After | Description |
-| --- | --- | --- | --- |
-| `<module or boundary>` | `<previous responsibility or behavior>` | `<new responsibility or behavior>` | `<reason and effect>` |
+When the diff changes where data or state lives, the change map must answer these questions without the reader opening the diff:
 
-Use module or domain names in the first column. Do not use a raw file list as the module map. Prose is sufficient for a single local module.
+- Which store and record own the data?
+- Is it a new field on an existing record, or a new table or collection?
+- Does it need a migration?
+- When is the data deleted or moved?
+
+Put the lifecycle in a small table below the diagram, one row for each piece of data.
 
 ## Behavior Evidence Workflow
 
@@ -57,7 +63,7 @@ Apply this workflow when the diff changes runtime behavior. A small wording, sty
 
 1. List the changed behavior scenarios with a stable ID and short title. Include affected state transitions, async ordering, retries, cancellation, event routing, persistence, cleanup, and failure or recovery paths.
 2. For each scenario, select the smallest evidence form that makes the change reviewable: prose for a local path, a module flow for changed ownership or dependencies, a sequence diagram for ordering, or a state diagram for changed transitions or terminal states.
-3. For a fix that changes a flow or state model, provide comparable `Before` and `After` diagrams. For a feature, show the resulting flow or state model and explain any replaced behavior.
+3. For a fix that changes a flow or state model, show `Before` and `After` in one view: one diagram with the added and removed steps marked and the legend inside it when the participants are the same, or two comparable diagrams side by side. For a feature, show the resulting flow or state model and explain any replaced behavior.
 4. Cover every listed scenario in the PR body or name it as unverified. Do not silently omit a changed path because a diagram seems optional.
 5. Inspect the evidence against the diff. Keep node names and abstraction level consistent across a `Before` and `After` pair.
 
@@ -71,11 +77,15 @@ Select risks that match the diff. Start with inputs and side effects. Then exami
 
 Map each high-risk invariant to existing tests, new tests, CI checks, or an unverified runtime condition. A green CI result proves only that its configured checks passed.
 
-Use a table when the PR has several meaningful edge cases or invariants:
+Show the boundaries as one guard flowchart, not as a multi-column table:
 
-| Invariant or boundary | Failure mode | Protection | Evidence or gap |
-| --- | --- | --- | --- |
-| `<required behavior>` | `<how it can fail>` | `<code or design guard>` | `<test, runtime evidence, or unverified gap>` |
+- Follow the request or data along its path.
+- Draw each guard as a decision. Draw each refusal, failure, or recovery as a branch.
+- Color each node by its evidence: covered by a test, or reasoned only.
+- Put the legend in one line below the diagram.
+- List the known gaps below the legend. Use one short line for each gap.
+
+Do not put test names in the diagram. Name a test in `## Verification` only when the reviewer needs it to find the evidence. Use a table only when the boundaries do not form a path, and keep it to three rows.
 
 Distinguish verified facts, assumptions, and unverified conditions. Do not write "safe," "fixed," or "backward compatible" without evidence.
 
